@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Adivinanza de Números</title>
+    <style>
+        /* Estilos generales */
+        * {
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+        }
+
+        /* Estilos para el contenedor del juego */
+        #gameContainer {
+            background-color: #fff;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #555;
+            font-size: 1em;
+            margin-bottom: 15px;
+        }
+
+        /* Selector de dificultad */
+        #difficulty {
+            padding: 10px;
+            font-size: 1em;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            background-color: #f4f4f4;
+            outline: none;
+            transition: background-color 0.3s;
+        }
+
+        #difficulty:hover {
+            background-color: #e0e0e0;
+        }
+
+        /* Botones estilizados */
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 20px;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            outline: none;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:first-of-type {
+            background-color: #4CAF50;
+            margin-bottom: 15px;
+        }
+
+        button:last-of-type {
+            background-color: #FF5722;
+            margin-top: 10px;
+        }
+
+        /* Caja de entrada */
+        #guessInput {
+            padding: 10px;
+            width: 100%;
+            font-size: 1em;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #guessInput:focus {
+            border-color: #4CAF50;
+        }
+
+        /* Mensajes de retroalimentación */
+        #feedback {
+            font-size: 1.1em;
+            color: #333;
+            font-weight: bold;
+            margin-top: 10px;
+            min-height: 1.5em;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>Juego de Adivinanza de Números</h1>
+        <p>Intenta adivinar el número secreto entre un rango establecido.</p>
+        <label for="difficulty">Elige la dificultad:</label>
+        <select id="difficulty">
+            <option value="easy">Fácil (1-50)</option>
+            <option value="normal" selected>Normal (1-100)</option>
+            <option value="hard">Difícil (1-200)</option>
+        </select>
+        <br><br>
+        
+        <button onclick="startGame()">Iniciar Juego</button>
+        
+        <div id="gameArea" style="display: none;">
+            <p id="message">¡El juego ha comenzado! Ingresa tu intento:</p>
+            <input type="number" id="guessInput" placeholder="Tu intento">
+            <button onclick="makeGuess()">Adivinar</button>
+            <p id="feedback"></p>
+            <button onclick="restartGame()">Reiniciar Juego</button>
+        </div>
+    </div>
+
+    <script>
+        // Código del juego en JavaScript
+
+        class RandomNumberStrategy {
+            generate() {
+                return Math.floor(Math.random() * 100) + 1;
+            }
+        }
+
+        class EasyRandomNumberStrategy extends RandomNumberStrategy {
+            generate() {
+                return Math.floor(Math.random() * 50) + 1;
+            }
+        }
+
+        class HardRandomNumberStrategy extends RandomNumberStrategy {
+            generate() {
+                return Math.floor(Math.random() * 200) + 1;
+            }
+        }
+
+        class NumberGeneratorContext {
+            constructor(strategy = new RandomNumberStrategy()) {
+                this.strategy = strategy;
+            }
+
+            setStrategy(strategy) {
+                this.strategy = strategy;
+            }
+
+            generateNumber() {
+                return this.strategy.generate();
+            }
+        }
+
+        class GameState {
+            constructor(game) {
+                this.game = game;
+            }
+
+            guess(number) {
+                throw new Error("Debe ser implementado por el estado específico");
+            }
+        }
+
+        class StartState extends GameState {
+            enter() {
+                document.getElementById("message").textContent = "¡El juego ha comenzado! Intenta adivinar el número.";
+                this.game.secretNumber = this.game.generator.generateNumber();
+                this.game.changeState(this.game.playingState);
+            }
+        }
+
+        class PlayingState extends GameState {
+            guess(number) {
+                if (number === this.game.secretNumber) {
+                    document.getElementById("feedback").textContent = "¡Felicidades! Has adivinado el número.";
+                    this.game.changeState(this.game.endState);
+                } else if (number < this.game.secretNumber) {
+                    document.getElementById("feedback").textContent = "El número secreto es mayor. Intenta de nuevo.";
+                } else {
+                    document.getElementById("feedback").textContent = "El número secreto es menor. Intenta de nuevo.";
+                }
+            }
+        }
+
+        class EndState extends GameState {
+            enter() {
+                document.getElementById("feedback").textContent = "El juego ha terminado. Puedes reiniciar para jugar de nuevo.";
+            }
+        }
+
+        class GuessingGame {
+            constructor() {
+                this.startState = new StartState(this);
+                this.playingState = new PlayingState(this);
+                this.endState = new EndState(this);
+                this.state = this.startState;
+
+                this.generator = new NumberGeneratorContext();
+                this.secretNumber = null;
+            }
+
+            setGeneratorStrategy(strategy) {
+                this.generator.setStrategy(strategy);
+            }
+
+            changeState(state) {
+                this.state = state;
+                if (typeof this.state.enter === "function") {
+                    this.state.enter();
+                }
+            }
+
+            start() {
+                this.changeState(this.startState);
+            }
+
+            guess(number) {
+                this.state.guess(number);
+            }
+
+            restart() {
+                document.getElementById("feedback").textContent = "";
+                this.changeState(this.startState);
+            }
+        }
+
+        // Instancia global del juego
+        const game = new GuessingGame();
+
+        function startGame() {
+            const difficulty = document.getElementById("difficulty").value;
+            const guessInput = document.getElementById("guessInput");
+
+            switch (difficulty) {
+                case "easy":
+                    game.setGeneratorStrategy(new EasyRandomNumberStrategy());
+                    guessInput.min = 1;
+                    guessInput.max = 50;
+                    break;
+                case "normal":
+                    game.setGeneratorStrategy(new RandomNumberStrategy());
+                    guessInput.min = 1;
+                    guessInput.max = 100;
+                    break;
+                case "hard":
+                    game.setGeneratorStrategy(new HardRandomNumberStrategy());
+                    guessInput.min = 1;
+                    guessInput.max = 200;
+                    break;
+            }
+
+            document.getElementById("gameArea").style.display = "block";
+            game.start();
+        }
+
+        function makeGuess() {
+            const guessInput = document.getElementById("guessInput");
+            const guess = parseInt(guessInput.value);
+            const min = parseInt(guessInput.min);
+            const max = parseInt(guessInput.max);
+            guessInput.value = "";
+
+            if (!isNaN(guess) && guess >= min && guess <= max) {
+                game.guess(guess);
+            } else {
+                document.getElementById("feedback").textContent = `Por favor, ingresa un número entre ${min} y ${max}.`;
+            }
+        }
+
+        function restartGame() {
+            game.restart();
+        }
+    </script>
+</body>
+</html>
